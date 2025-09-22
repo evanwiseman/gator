@@ -20,7 +20,7 @@ func getConfigPath() (string, error) {
 
 // JSON representation of the config file
 type Config struct {
-	Url      string `json:"db_url"`
+	DBURL    string `json:"db_url"`
 	Username string `json:"current_username"`
 }
 
