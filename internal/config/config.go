@@ -21,7 +21,7 @@ func getConfigPath() (string, error) {
 // JSON representation of the config file
 type Config struct {
 	DBURL    string `json:"db_url"`
-	Username string `json:"current_username"`
+	UserName string `json:"current_user_name"`
 }
 
 // Read the config file from the home directory and return the config and any errors
@@ -78,12 +78,12 @@ func write(cfg Config) error {
 	return nil
 }
 
-// Set the username in the config and write to the config file, return any errors
-func (cfg *Config) SetUsername(username string) error {
-	cfg.Username = username
+// Set the user name in the config and write to the config file, return any errors
+func (cfg *Config) SetUserName(userName string) error {
+	cfg.UserName = userName
 	err := write(*cfg)
 	if err != nil {
-		return fmt.Errorf("error setting username: %v", err)
+		return fmt.Errorf("error writing user name: %v", err)
 	}
 
 	return nil

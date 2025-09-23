@@ -1,11 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
 	"github.com/evanwiseman/gator/internal/cli"
 	"github.com/evanwiseman/gator/internal/config"
+	"github.com/evanwiseman/gator/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -19,12 +22,20 @@ func main() {
 	cfg, err := config.Read()
 	if err != nil {
 		fmt.Printf("%v\n", err)
-		return
+		os.Exit(1)
 	}
+
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	dbQueries := database.New(db)
 
 	// Store the config state as context
 	context := cli.State{
-		Config: &cfg,
+		DB:  dbQueries,
+		Cfg: &cfg,
 	}
 
 	// Create a command registry and register relevant commands
@@ -32,6 +43,7 @@ func main() {
 		Registry: make(map[string]func(*cli.State, cli.Command) error),
 	}
 	commands.Register("login", cli.HandlerLogin)
+	commands.Register("register", cli.HandlerRegister)
 
 	// Create a command from the user provided args and run it with given context
 	command := cli.Command{
