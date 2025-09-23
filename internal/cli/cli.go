@@ -73,6 +73,15 @@ func HandlerRegister(s *State, cmd Command) error {
 	return nil
 }
 
+func HandlerReset(s *State, cmd Command) error {
+	context := context.Background()
+	err := s.DB.ResetUsers(context)
+	if err != nil {
+		return fmt.Errorf("error unable to reset users: %v", err)
+	}
+	return nil
+}
+
 type Commands struct {
 	Registry map[string]func(*State, Command) error
 }
