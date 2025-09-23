@@ -45,6 +45,10 @@ func main() {
 	commands.Register("login", cli.HandlerLogin)
 	commands.Register("register", cli.HandlerRegister)
 	commands.Register("reset", cli.HandlerReset)
+	commands.Register("users", cli.HandlerUsers)
+	commands.Register("agg", cli.HandlerAgg)
+	commands.Register("addfeed", cli.HandlerAddFeed)
+	commands.Register("feeds", cli.HandlerFeeds)
 
 	// Create a command from the user provided args and run it with given context
 	command := cli.Command{

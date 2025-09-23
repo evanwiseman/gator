@@ -8,6 +8,7 @@ import (
 
 	"github.com/evanwiseman/gator/internal/config"
 	"github.com/evanwiseman/gator/internal/database"
+	"github.com/evanwiseman/gator/internal/rss"
 	"github.com/google/uuid"
 )
 
@@ -74,11 +75,102 @@ func HandlerRegister(s *State, cmd Command) error {
 }
 
 func HandlerReset(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error expects no arguments")
+	}
 	context := context.Background()
 	err := s.DB.ResetUsers(context)
 	if err != nil {
 		return fmt.Errorf("error unable to reset users: %v", err)
 	}
+	return nil
+}
+
+func HandlerUsers(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error expects no arguments")
+	}
+	context := context.Background()
+	sqlUserNames, err := s.DB.GetUsers(context)
+	if err != nil {
+		return fmt.Errorf("error unable to get users: %v", err)
+	}
+
+	for _, sqlUserName := range sqlUserNames {
+		if sqlUserName.Valid {
+			fmt.Printf("* %v", sqlUserName.String)
+			if sqlUserName.String == s.Cfg.UserName {
+				fmt.Print(" (current)")
+			}
+			fmt.Print("\n")
+		}
+	}
+	return nil
+}
+
+func HandlerAgg(s *State, cmd Command) error {
+	context := context.Background()
+	feedURL := "https://www.wagslane.dev/index.xml"
+	rssFeed, err := rss.FetchFeed(context, feedURL)
+	if err != nil {
+		return fmt.Errorf("error unable to fetch feed: %v", err)
+	}
+	fmt.Print(rssFeed)
+	return nil
+}
+
+func HandlerAddFeed(s *State, cmd Command) error {
+	if len(cmd.Args) < 2 {
+		return fmt.Errorf("error missing args")
+	} else if len(cmd.Args) > 2 {
+		return fmt.Errorf("error too many args")
+	}
+
+	context := context.Background()
+	name := cmd.Args[0]
+	url := cmd.Args[1]
+	user, err := s.DB.GetUser(context, sql.NullString{String: s.Cfg.UserName, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error unable to get current user: %v", err)
+	}
+
+	feed, err := s.DB.CreateFeed(context, database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      sql.NullString{String: name, Valid: true},
+		Url:       sql.NullString{String: url, Valid: true},
+		UserID:    uuid.NullUUID{UUID: user.ID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("error unable to add entry to feed: %v", err)
+	}
+	fmt.Printf(
+		"Feed{\n  %v\n  %v\n  %v\n  %v\n  %v\n  %v\n}",
+		feed.ID,
+		feed.CreatedAt,
+		feed.UpdatedAt,
+		feed.Name,
+		feed.Url, feed.UserID,
+	)
+
+	return nil
+}
+
+func HandlerFeeds(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error expects no arguments")
+	}
+
+	context := context.Background()
+	feeds, err := s.DB.GetFeeds(context)
+	if err != nil {
+		return fmt.Errorf("error unable to get feeds: %v", err)
+	}
+	for _, feed := range feeds {
+		fmt.Printf("%v - %v (%v)\n", feed.Name.String, feed.Url.String, feed.Name_2.String)
+	}
+
 	return nil
 }
 
