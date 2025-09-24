@@ -22,12 +22,26 @@ type Command struct {
 	Args []string
 }
 
+func MiddlewareLoggedIn(handler func(s *State, cmd Command, user database.User) error) func(*State, Command) error {
+	return func(s *State, cmd Command) error {
+		context := context.Background()
+		user, err := s.DB.GetUser(context, sql.NullString{
+			String: s.Cfg.UserName,
+			Valid:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("must be logged in: %v", err)
+		}
+		return handler(s, cmd, user)
+	}
+}
+
 func HandlerLogin(s *State, cmd Command) error {
 	// Validate Args
 	if len(cmd.Args) == 0 {
-		return fmt.Errorf("error no username provided")
+		return fmt.Errorf("no username provided")
 	} else if len(cmd.Args) > 1 {
-		return fmt.Errorf("error expects only 1 username")
+		return fmt.Errorf("more than one username provided")
 	}
 
 	// Check user is in database
@@ -35,13 +49,13 @@ func HandlerLogin(s *State, cmd Command) error {
 	userName := cmd.Args[0]
 	_, err := s.DB.GetUser(context, sql.NullString{String: userName, Valid: true})
 	if err != nil {
-		return fmt.Errorf("error user not in database: %v", err)
+		return fmt.Errorf("user not in database: %v", err)
 	}
 
 	// Set the user in the database
 	err = s.Cfg.SetUserName(userName)
 	if err != nil {
-		return fmt.Errorf("error couldn't set username: %v", err)
+		return fmt.Errorf("unable to set username: %v", err)
 	}
 	fmt.Printf("user successfully set to %v\n", userName)
 	return nil
@@ -50,9 +64,9 @@ func HandlerLogin(s *State, cmd Command) error {
 func HandlerRegister(s *State, cmd Command) error {
 	// Validate Args
 	if len(cmd.Args) == 0 {
-		return fmt.Errorf("error no username provided")
+		return fmt.Errorf("no username provided")
 	} else if len(cmd.Args) > 1 {
-		return fmt.Errorf("error expects only 1 username")
+		return fmt.Errorf("more than one username provided")
 	}
 
 	context := context.Background()
@@ -137,7 +151,7 @@ func HandlerAgg(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerAddFeed(s *State, cmd Command) error {
+func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 	// Validate Args
 	if len(cmd.Args) < 2 {
 		return fmt.Errorf("error missing args")
@@ -149,10 +163,6 @@ func HandlerAddFeed(s *State, cmd Command) error {
 	context := context.Background()
 	name := cmd.Args[0]
 	url := cmd.Args[1]
-	user, err := s.DB.GetUser(context, sql.NullString{String: s.Cfg.UserName, Valid: true})
-	if err != nil {
-		return fmt.Errorf("error unable to get current user: %v", err)
-	}
 
 	// Attempt to create a feed
 	feed, err := s.DB.CreateFeed(context, database.CreateFeedParams{
@@ -205,7 +215,7 @@ func HandlerFeeds(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerFollow(s *State, cmd Command) error {
+func HandlerFollow(s *State, cmd Command, user database.User) error {
 	// Validate Args
 	if len(cmd.Args) < 1 {
 		return fmt.Errorf("error expects url argument, not none")
@@ -215,12 +225,6 @@ func HandlerFollow(s *State, cmd Command) error {
 
 	context := context.Background()
 	feedURL := cmd.Args[0]
-
-	// Fetch the current user
-	user, err := s.DB.GetUser(context, sql.NullString{String: s.Cfg.UserName, Valid: true})
-	if err != nil {
-		return fmt.Errorf("error unable to get user name: %v", err)
-	}
 
 	// Fetch the feed
 	feed, err := s.DB.GetFeed(context, sql.NullString{String: feedURL, Valid: true})
@@ -249,19 +253,13 @@ func HandlerFollow(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerFollowing(s *State, cmd Command) error {
+func HandlerFollowing(s *State, cmd Command, user database.User) error {
 	// Validate Args
 	if len(cmd.Args) > 0 {
 		return fmt.Errorf("error expecting no argument ")
 	}
 
 	context := context.Background()
-
-	// Fetch the current user
-	user, err := s.DB.GetUser(context, sql.NullString{String: s.Cfg.UserName, Valid: true})
-	if err != nil {
-		return fmt.Errorf("error unable to get current user %v: %v", s.Cfg.UserName, err)
-	}
 
 	// Fetch all feed follows for the current user
 	feedFollows, err := s.DB.GetFeedFollowsForUser(context, uuid.NullUUID{UUID: user.ID, Valid: true})
