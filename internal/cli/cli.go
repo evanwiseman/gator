@@ -139,20 +139,47 @@ func HandlerUsers(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerAgg(s *State, cmd Command) error {
-	// Validate Args
-	if len(cmd.Args) > 0 {
-		return fmt.Errorf("error expects no arguments")
+func scrapeFeed(s *State) {
+	context := context.Background()
+	feed, err := s.DB.GetNextFeedToFetch(context)
+
+	if err != nil {
+		return
 	}
 
-	context := context.Background()
-	feedURL := "https://www.wagslane.dev/index.xml"
-	rssFeed, err := rss.FetchFeed(context, feedURL)
+	err = s.DB.MarkFeedFetched(context, feed.ID)
 	if err != nil {
-		return fmt.Errorf("unable to fetch feed: %v", err)
+		return
 	}
-	fmt.Printf("%v\n", rssFeed)
-	return nil
+
+	rssFeed, err := rss.FetchFeed(context, feed.Url.String)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%v:\n", feed.Name.String)
+	for _, i := range rssFeed.Channel.Item {
+		fmt.Printf("* %v\n", i.Title)
+	}
+}
+
+func HandlerAgg(s *State, cmd Command) error {
+	// Validate Args
+	usage := "usage: agg <time_duration>"
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("missing time duration. %v", usage)
+	} else if len(cmd.Args) > 1 {
+		return fmt.Errorf("too many arguments. %v", usage)
+	}
+
+	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("unable to parse time duration: %v", err)
+	}
+
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		scrapeFeed(s)
+	}
 }
 
 func HandlerAddFeed(s *State, cmd Command, user database.User) error {
