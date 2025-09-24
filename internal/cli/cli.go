@@ -115,7 +115,7 @@ func HandlerAgg(s *State, cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("error unable to fetch feed: %v", err)
 	}
-	fmt.Print(rssFeed)
+	fmt.Printf("%v\n", rssFeed)
 	return nil
 }
 
@@ -145,6 +145,18 @@ func HandlerAddFeed(s *State, cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("error unable to add entry to feed: %v", err)
 	}
+
+	_, err = s.DB.CreateFeedFollow(context, database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    uuid.NullUUID{UUID: user.ID, Valid: true},
+		FeedID:    uuid.NullUUID{UUID: feed.ID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("error unable to follow the feed: %v", err)
+	}
+
 	fmt.Printf(
 		"Feed{\n  %v\n  %v\n  %v\n  %v\n  %v\n  %v\n}",
 		feed.ID,
@@ -168,9 +180,64 @@ func HandlerFeeds(s *State, cmd Command) error {
 		return fmt.Errorf("error unable to get feeds: %v", err)
 	}
 	for _, feed := range feeds {
-		fmt.Printf("%v - %v (%v)\n", feed.Name.String, feed.Url.String, feed.Name_2.String)
+		fmt.Printf("%v - %v (%v)\n", feed.Name.String, feed.Url.String, feed.UserName.String)
 	}
 
+	return nil
+}
+
+func HandlerFollow(s *State, cmd Command) error {
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("error expects url argument, not none")
+	} else if len(cmd.Args) > 1 {
+		return fmt.Errorf("error expects only one argument")
+	}
+
+	context := context.Background()
+	feedURL := cmd.Args[0]
+	user, err := s.DB.GetUser(context, sql.NullString{String: s.Cfg.UserName, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error unable to get user name: %v", err)
+	}
+	feed, err := s.DB.GetFeed(context, sql.NullString{String: feedURL, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error unable to get feed from '%v': %v", feedURL, err)
+	}
+	_, err = s.DB.CreateFeedFollow(context, database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    uuid.NullUUID{UUID: user.ID, Valid: true},
+		FeedID:    uuid.NullUUID{UUID: feed.ID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("error unable to add feed follow for '%v' to '%v': %v", user.Name.String, feed.Url.String, err)
+	}
+	fmt.Printf(
+		"%v - %v\n",
+		feed.Name,
+		user.Name,
+	)
+	return nil
+}
+
+func HandlerFollowing(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error expecting no argument ")
+	}
+
+	context := context.Background()
+	user, err := s.DB.GetUser(context, sql.NullString{String: s.Cfg.UserName, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error unable to get current user %v: %v", s.Cfg.UserName, err)
+	}
+	feedFollows, err := s.DB.GetFeedFollowsForUser(context, uuid.NullUUID{UUID: user.ID, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error unable to get feeds: %v", err)
+	}
+	for _, feedFollow := range feedFollows {
+		fmt.Printf("%v\n", feedFollow.FeedName)
+	}
 	return nil
 }
 
