@@ -38,10 +38,11 @@ func MiddlewareLoggedIn(handler func(s *State, cmd Command, user database.User) 
 
 func HandlerLogin(s *State, cmd Command) error {
 	// Validate Args
+	usage := "usage: login <name>"
 	if len(cmd.Args) == 0 {
-		return fmt.Errorf("no username provided")
+		return fmt.Errorf("no username provided. %v", usage)
 	} else if len(cmd.Args) > 1 {
-		return fmt.Errorf("more than one username provided")
+		return fmt.Errorf("more than one username provided. %v", usage)
 	}
 
 	// Check user is in database
@@ -63,10 +64,11 @@ func HandlerLogin(s *State, cmd Command) error {
 
 func HandlerRegister(s *State, cmd Command) error {
 	// Validate Args
+	usage := "usage: register <name>"
 	if len(cmd.Args) == 0 {
-		return fmt.Errorf("no username provided")
+		return fmt.Errorf("no username provided. %v", usage)
 	} else if len(cmd.Args) > 1 {
-		return fmt.Errorf("more than one username provided")
+		return fmt.Errorf("more than one username provided. %v", usage)
 	}
 
 	context := context.Background()
@@ -80,13 +82,13 @@ func HandlerRegister(s *State, cmd Command) error {
 		Name:      sql.NullString{String: userName, Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("error user '%v' is already registered: %v", userName, err)
+		return fmt.Errorf("user '%v' is already registered: %v", userName, err)
 	}
 
 	// Set the username in the configuration file
 	err = s.Cfg.SetUserName(userName)
 	if err != nil {
-		return fmt.Errorf("error unable to set user name '%v': %v", userName, err)
+		return fmt.Errorf("unable to set user name '%v': %v", userName, err)
 	}
 	fmt.Printf("user '%v' successfully registered\n", userName)
 	return nil
@@ -94,8 +96,9 @@ func HandlerRegister(s *State, cmd Command) error {
 
 func HandlerReset(s *State, cmd Command) error {
 	// Validate Args
+	usage := "usage: reset"
 	if len(cmd.Args) > 0 {
-		return fmt.Errorf("error expects no arguments")
+		return fmt.Errorf("no arguments required for reset. %v", usage)
 	}
 
 	// Attempt to reset the users database
@@ -103,15 +106,16 @@ func HandlerReset(s *State, cmd Command) error {
 	context := context.Background()
 	err := s.DB.ResetUsers(context)
 	if err != nil {
-		return fmt.Errorf("error unable to reset database: %v", err)
+		return fmt.Errorf("unable to reset database: %v", err)
 	}
 	return nil
 }
 
 func HandlerUsers(s *State, cmd Command) error {
 	// Validate Args
+	usage := "usage: users"
 	if len(cmd.Args) > 0 {
-		return fmt.Errorf("error expects no arguments")
+		return fmt.Errorf("no arguments required to list users. %v", usage)
 	}
 
 	context := context.Background()
@@ -119,7 +123,7 @@ func HandlerUsers(s *State, cmd Command) error {
 	// Get the users from the database
 	sqlUserNames, err := s.DB.GetUsers(context)
 	if err != nil {
-		return fmt.Errorf("error unable to get users: %v", err)
+		return fmt.Errorf("unable to get users: %v", err)
 	}
 
 	// Output users to the console
@@ -145,7 +149,7 @@ func HandlerAgg(s *State, cmd Command) error {
 	feedURL := "https://www.wagslane.dev/index.xml"
 	rssFeed, err := rss.FetchFeed(context, feedURL)
 	if err != nil {
-		return fmt.Errorf("error unable to fetch feed: %v", err)
+		return fmt.Errorf("unable to fetch feed: %v", err)
 	}
 	fmt.Printf("%v\n", rssFeed)
 	return nil
@@ -153,10 +157,11 @@ func HandlerAgg(s *State, cmd Command) error {
 
 func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 	// Validate Args
+	usage := "usage: addfeed <name> <url>"
 	if len(cmd.Args) < 2 {
-		return fmt.Errorf("error missing args")
+		return fmt.Errorf("missing argument(s). %v", usage)
 	} else if len(cmd.Args) > 2 {
-		return fmt.Errorf("error too many args")
+		return fmt.Errorf("too many argument(s). %v", usage)
 	}
 
 	// Fetch the current user
@@ -174,7 +179,7 @@ func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 		UserID:    uuid.NullUUID{UUID: user.ID, Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("error unable to add entry to feed: %v", err)
+		return fmt.Errorf("unable to add entry to feed: %v", err)
 	}
 
 	// Attempt to follow the feed
@@ -186,7 +191,7 @@ func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 		FeedID:    uuid.NullUUID{UUID: feed.ID, Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("error unable to follow the feed: %v", err)
+		return fmt.Errorf("unable to follow the feed: %v", err)
 	}
 
 	// Output to console
@@ -196,8 +201,9 @@ func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 
 func HandlerFeeds(s *State, cmd Command) error {
 	// Validate Args
+	usage := "usage: feeds"
 	if len(cmd.Args) > 0 {
-		return fmt.Errorf("error expects no arguments")
+		return fmt.Errorf("no arguments required to list feeds. %v", usage)
 	}
 
 	// Get all feeds
@@ -217,10 +223,11 @@ func HandlerFeeds(s *State, cmd Command) error {
 
 func HandlerFollow(s *State, cmd Command, user database.User) error {
 	// Validate Args
+	usage := "usage: follow <url>"
 	if len(cmd.Args) < 1 {
-		return fmt.Errorf("error expects url argument, not none")
+		return fmt.Errorf("missing url. %v", usage)
 	} else if len(cmd.Args) > 1 {
-		return fmt.Errorf("error expects only one argument")
+		return fmt.Errorf("more than one url provided. %v", usage)
 	}
 
 	context := context.Background()
@@ -229,7 +236,7 @@ func HandlerFollow(s *State, cmd Command, user database.User) error {
 	// Fetch the feed
 	feed, err := s.DB.GetFeed(context, sql.NullString{String: feedURL, Valid: true})
 	if err != nil {
-		return fmt.Errorf("error unable to get feed from '%v': %v", feedURL, err)
+		return fmt.Errorf("unable to get feed from '%v': %v", feedURL, err)
 	}
 
 	// Attempt to follow the feed
@@ -241,7 +248,7 @@ func HandlerFollow(s *State, cmd Command, user database.User) error {
 		FeedID:    uuid.NullUUID{UUID: feed.ID, Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("error unable to add feed follow for '%v' to '%v': %v", user.Name.String, feed.Url.String, err)
+		return fmt.Errorf("unable to add feed follow for '%v' to '%v': %v", user.Name.String, feed.Url.String, err)
 	}
 
 	// Output to console
@@ -255,10 +262,11 @@ func HandlerFollow(s *State, cmd Command, user database.User) error {
 
 func HandlerUnfollow(s *State, cmd Command, user database.User) error {
 	// Validate Args
+	usage := "usage: unfollow <url>"
 	if len(cmd.Args) < 1 {
-		return fmt.Errorf("error expecting url")
+		return fmt.Errorf("missing url. %v", usage)
 	} else if len(cmd.Args) > 1 {
-		return fmt.Errorf("error expecting only one url")
+		return fmt.Errorf("more than one url provided. %v", usage)
 	}
 
 	context := context.Background()
@@ -276,8 +284,9 @@ func HandlerUnfollow(s *State, cmd Command, user database.User) error {
 
 func HandlerFollowing(s *State, cmd Command, user database.User) error {
 	// Validate Args
+	usage := "usage: following"
 	if len(cmd.Args) > 0 {
-		return fmt.Errorf("error expecting no argument ")
+		return fmt.Errorf("no arguments required to list followings. %v", usage)
 	}
 
 	context := context.Background()
