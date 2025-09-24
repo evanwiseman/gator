@@ -253,6 +253,27 @@ func HandlerFollow(s *State, cmd Command, user database.User) error {
 	return nil
 }
 
+func HandlerUnfollow(s *State, cmd Command, user database.User) error {
+	// Validate Args
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("error expecting url")
+	} else if len(cmd.Args) > 1 {
+		return fmt.Errorf("error expecting only one url")
+	}
+
+	context := context.Background()
+	url := cmd.Args[0]
+
+	err := s.DB.DeleteFeedFollow(context, database.DeleteFeedFollowParams{
+		UserID: uuid.NullUUID{UUID: user.ID, Valid: true},
+		Url:    sql.NullString{String: url, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("unable to unfollow '%v': %v", url, err)
+	}
+	return nil
+}
+
 func HandlerFollowing(s *State, cmd Command, user database.User) error {
 	// Validate Args
 	if len(cmd.Args) > 0 {
