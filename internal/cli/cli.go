@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/evanwiseman/gator/internal/config"
@@ -159,6 +160,25 @@ func scrapeFeed(s *State) {
 	fmt.Printf("%v:\n", feed.Name.String)
 	for _, i := range rssFeed.Channel.Item {
 		fmt.Printf("* %v\n", i.Title)
+		t, err := rss.ParseRSSTime(i.PubDate)
+		if err != nil {
+			fmt.Printf("unable to parse rss item pub date %v: %v", i.PubDate, err)
+			continue
+		}
+
+		_, err = s.DB.CreatePost(context, database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       sql.NullString{String: i.Title, Valid: true},
+			Url:         sql.NullString{String: i.Link, Valid: true},
+			Description: sql.NullString{String: i.Description, Valid: true},
+			PublishedAt: sql.NullTime{Time: t, Valid: true},
+			FeedID:      uuid.NullUUID{UUID: feed.ID, Valid: true},
+		})
+		if err != nil { // URL likely already exists in table
+			continue
+		}
 	}
 }
 
@@ -180,6 +200,49 @@ func HandlerAgg(s *State, cmd Command) error {
 	for ; ; <-ticker.C {
 		scrapeFeed(s)
 	}
+}
+
+func HandlerBrowse(s *State, cmd Command, user database.User) error {
+	var limit int32
+	usage := "usage: [limit(int)]"
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("too many arguments. %v", usage)
+	} else if len(cmd.Args) == 1 {
+		parsedLimit, err := strconv.Atoi(cmd.Args[0])
+		limit = int32(parsedLimit)
+		if err != nil {
+			return fmt.Errorf("limit is not an integer")
+		}
+		if limit <= 0 {
+			return fmt.Errorf("limit cannot be <= 0")
+		}
+	} else {
+		limit = 2
+	}
+
+	context := context.Background()
+
+	posts, err := s.DB.GetPostsForUser(context, database.GetPostsForUserParams{
+		ID:    user.ID,
+		Limit: limit,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to get posts from user '%v': %v", user.Name.String, err)
+	}
+
+	for _, post := range posts {
+		if post.Title.Valid {
+			fmt.Printf("Title: %v\n", post.Title.String)
+		}
+		if post.PublishedAt.Valid {
+			fmt.Printf("Published At: %v\n", post.PublishedAt.Time)
+		}
+		if post.Description.Valid {
+			fmt.Printf("%v\n\n", post.Description.String)
+		}
+	}
+
+	return nil
 }
 
 func HandlerAddFeed(s *State, cmd Command, user database.User) error {
