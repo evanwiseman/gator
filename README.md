@@ -3,8 +3,15 @@
 ## Introduction
 gator aggregates RSS Feeds and allows users to follow and add any RSS Feed to their currated list of RSS Feeds.
 
-## Setup
-Create a .gatorconfig.json in your $HOME directory with the keys "db_url". db_url will point to a postgres database locally configured on your machine.
+# Requirements
+Go
+Postgres
+
+
+## Install
+Download the repository and install with ```go install .``` this will add it to your $GOBIN or ~/go/bin. You should be able to use the CLI tool with "gator" inside your terminal.
+
+Create a .gatorconfig.json in your $HOME directory (~) with the key "db_url". db_url will point to a postgres database locally configured on your machine.
 
 ## Commands
 - "login" (usage: "login <name>"): Allows a user to login to their account and access their feeds.
